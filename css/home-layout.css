@@ -1,4 +1,4 @@
-/* Canonical home-screen geometry shared with R Calculus. */
+/* Canonical home-screen geometry shared with R Kalkyle. */
 html, body { width:100%; height:100%; margin:0; overflow:hidden; overscroll-behavior:none; background:#2a173d; }
 body { position:fixed; inset:0; }
 #app { position:fixed; inset:0; width:100%; max-width:none!important; height:100dvh; min-height:100dvh; margin:0!important; overflow:hidden; overscroll-behavior:none; background:#2a173d; }
@@ -8,7 +8,7 @@ body { position:fixed; inset:0; }
 .start-view .edge-tint { position:absolute!important; z-index:1!important; inset:0!important; }
 .start-view .colour-orbits { position:absolute!important; z-index:0!important; inset:0!important; }
 .start-view .ambient-stars { position:absolute!important; z-index:3!important; inset:0!important; transform:none!important; }
-.start-view .brand-studios { position:absolute!important; z-index:4!important; top:calc(50% + min(43.6vw,238px) + 12px)!important; left:50%!important; transform:translateX(-50%)!important; margin:0!important; pointer-events:none; }
+.start-view .brand-skisse { position:absolute!important; z-index:4!important; top:calc(50% + min(43.6vw,238px) + 12px)!important; left:50%!important; transform:translateX(-50%)!important; margin:0!important; pointer-events:none; }
 .start-view .start-actions { position:absolute!important; z-index:4!important; inset:0!important; display:block!important; width:auto!important; margin:0!important; padding:0!important; }
 .start-view .upload-button { position:absolute!important; inset:0!important; display:block!important; width:100%!important; height:100%!important; margin:0!important; padding:0!important; border:0!important; border-radius:0!important; background:transparent!important; box-shadow:none!important; color:transparent!important; font-size:0!important; }
 .start-view .app-version { position:absolute!important; z-index:6!important; display:block!important; right:auto!important; bottom:calc(18px + env(safe-area-inset-bottom))!important; left:calc(18px + env(safe-area-inset-left))!important; margin:0!important; white-space:nowrap!important; }
