@@ -21,7 +21,6 @@
   const filesList = document.querySelector('#mailFiles');
   const note = document.querySelector('#mailNote');
   const send = document.querySelector('#sendMailButton');
-  const account = document.querySelector('#mailAccount');
   let selectedRecipients = [];
   let token = null;
   let tokenExpiresAt = 0;
@@ -42,7 +41,6 @@
     element.classList.add('show');
     mailToastTimer = setTimeout(() => { element.classList.remove('show'); element.style.background = ''; }, 3500);
   }
-  function setAccount() { account.textContent = graphUser ? `Sender som ${graphUser.mail || graphUser.userPrincipalName}` : 'Logg inn med Rumag-konto når du sender.'; }
   function pdfs() { return (window.getSavedSketches?.() || []).filter(sketch => sketch.pdfBlob).map(sketch => ({ sketch, file: new File([sketch.pdfBlob], sketchFileName(sketch, 'pdf'), { type: 'application/pdf' }) })); }
   function renderDialog() {
     selectedRecipients = [];
@@ -65,7 +63,6 @@
       preview.onclick = () => window.open(URL.createObjectURL(file), '_blank', 'noopener'); row.append(name, preview); return row;
     }));
     if (!attachments.length) filesList.textContent = 'Ingen PDF-er er klare ennå.';
-    setAccount();
   }
   function openDialog() { if (!window.getSavedSketches?.().length) { toast('Ingen skisser er klare ennå.'); return; } renderDialog(); dialog.classList.remove('hidden', 'is-closing'); }
   function closeDialog() { if (dialog.classList.contains('hidden')) return; dialog.classList.add('is-closing'); const done = event => { if (event.target !== dialog) return; dialog.classList.add('hidden'); dialog.classList.remove('is-closing'); dialog.removeEventListener('animationend', done); }; dialog.addEventListener('animationend', done); }
@@ -88,7 +85,7 @@
     const data = await response.json(); if (!response.ok) throw new Error(data.error_description || 'Microsoft-innloggingen feilet.');
     token = data.access_token; tokenExpiresAt = Date.now() + Number(data.expires_in || 3600) * 1000;
     const profile = await fetch('https://graph.microsoft.com/v1.0/me?$select=mail,userPrincipalName,displayName', { headers: { Authorization: `Bearer ${token}` } });
-    if (!profile.ok) throw new Error('Kunne ikke hente Rumag-brukeren.'); graphUser = await profile.json(); setAccount(); return token;
+    if (!profile.ok) throw new Error('Kunne ikke hente Rumag-brukeren.'); graphUser = await profile.json(); return token;
   }
   const base64 = file => new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result).split(',')[1]); reader.onerror = () => reject(reader.error); reader.readAsDataURL(file); });
   async function sendMail() {
@@ -98,8 +95,9 @@
     send.disabled = true; send.textContent = 'Sender …';
     try {
       const accessToken = await getToken();
-      const title = projectTitle() || 'Befaringsskisse';
-      const body = [`${title}`, note.value.trim(), '', 'Vedlagte PDF-er er laget i R Skisse.'].filter(Boolean).join('\n');
+      const title = 'Befaringsskisse';
+      const noteText = note.value.trim();
+      const body = noteText ? `${noteText}\n\nVedlagte PDF-er er laget i R Skisse.` : 'Vedlagte PDF-er er laget i R Skisse.';
       const payload = { message: { subject: title, body: { contentType: 'Text', content: body }, toRecipients: selectedRecipients.map(person => ({ emailAddress: { address: person.email } })), attachments: await Promise.all(attachments.map(async ({ file }) => ({ '@odata.type': '#microsoft.graph.fileAttachment', name: file.name, contentType: 'application/pdf', contentBytes: await base64(file) }))) }, saveToSentItems: true };
       const response = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!response.ok) { const detail = await response.json().catch(() => ({})); throw new Error(detail.error?.message || 'Microsoft Graph kunne ikke sende e-posten.'); }
