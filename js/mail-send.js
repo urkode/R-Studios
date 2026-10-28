@@ -65,7 +65,7 @@
     if (!attachments.length) filesList.textContent = 'Ingen PDF-er er klare ennå.';
   }
   function openDialog() { if (!window.getSavedSketches?.().length) { toast('Ingen skisser er klare ennå.'); return; } renderDialog(); document.body.classList.add('mail-dialog-open'); dialog.classList.remove('hidden', 'is-closing'); }
-  function closeDialog() { if (dialog.classList.contains('hidden')) return; document.body.classList.remove('mail-dialog-open'); dialog.classList.add('is-closing'); const done = event => { if (event.target !== dialog) return; dialog.classList.add('hidden'); dialog.classList.remove('is-closing'); dialog.removeEventListener('animationend', done); }; dialog.addEventListener('animationend', done); }
+  function closeDialog() { if (dialog.classList.contains('hidden')) return; const card = dialog.querySelector('.mail-card'); document.body.classList.remove('mail-dialog-open'); dialog.classList.add('is-closing'); const done = event => { if (event.target !== card) return; dialog.classList.add('hidden'); dialog.classList.remove('is-closing'); card.removeEventListener('animationend', done); }; card.addEventListener('animationend', done); }
 
   async function getToken() {
     if (token && Date.now() < tokenExpiresAt - 60_000) return token;
