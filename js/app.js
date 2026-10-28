@@ -1,5 +1,5 @@
 const $=s=>document.querySelector(s),views=['startView','cameraView','editorView','finishView'];
-$('#accessLogout').onclick=()=>{location.assign('/cdn-cgi/access/logout');};
+$('#accessLogout').onclick=()=>{['r-skisse-graph-access-token','r-skisse-graph-access-token-expiry','r-skisse-mail-state','r-skisse-mail-verifier','r-skisse-mail-pending'].forEach(key=>sessionStorage.removeItem(key));location.assign('/cdn-cgi/access/logout');};
 const photo=$('#photoCanvas'),draw=$('#drawCanvas'),pctx=photo.getContext('2d'),dctx=draw.getContext('2d'),wrap=$('#canvasWrap'),textLayer=$('#textLayer');
 let stream,imageData,strokes=[],currentStroke,color='#ef4444',penThickness=1.95,penActive=false,finishedBlob,conversionSnapshot=null,erasedRegions=[],activeTextEntry=null,textHoldTouchId=null,textScaleState=null;
 const finishButton=document.createElement('button');finishButton.id='backToStart';finishButton.className='floating-button finish-button';finishButton.type='button';finishButton.textContent='Ferdig';finishButton.setAttribute('aria-label','Ferdig');wrap.append(finishButton);
