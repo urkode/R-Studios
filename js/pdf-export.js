@@ -21,8 +21,19 @@ function pdfText(value) {
   }).join('');
 }
 
-function canvasJpegBytes(canvas) {
-  const binary = atob(canvas.toDataURL('image/jpeg', .95).split(',')[1]);
+function preparedPdfImage(canvas, maxDimension) {
+  const largestSide = Math.max(canvas.width, canvas.height);
+  if (!maxDimension || largestSide <= maxDimension) return canvas;
+  const scale = maxDimension / largestSide;
+  const image = document.createElement('canvas');
+  image.width = Math.max(1, Math.round(canvas.width * scale));
+  image.height = Math.max(1, Math.round(canvas.height * scale));
+  image.getContext('2d').drawImage(canvas, 0, 0, image.width, image.height);
+  return image;
+}
+
+function canvasJpegBytes(canvas, quality = .95) {
+  const binary = atob(canvas.toDataURL('image/jpeg', quality).split(',')[1]);
   const bytes = new Uint8Array(binary.length);
   for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
   return bytes;
@@ -32,8 +43,9 @@ function pdfBytes(value) {
   return new TextEncoder().encode(value);
 }
 
-function exportEditablePdf() {
-  const jpeg = canvasJpegBytes(photo);
+function exportEditablePdf(options = {}) {
+  const pdfImage = preparedPdfImage(photo, options.maxImageDimension);
+  const jpeg = canvasJpegBytes(pdfImage, options.quality ?? .95);
   const scale = Math.min(1, 1000 / Math.max(photo.width, photo.height));
   /* Text sizes are shown in screen pixels in the editor. Convert them back to
      photo pixels before writing the PDF, just as the image preview does. */
@@ -98,7 +110,7 @@ function exportEditablePdf() {
   object(1, ['<< /Type /Catalog /Pages 2 0 R /OCProperties << /OCGs [7 0 R 8 0 R] /D << /Order [7 0 R 8 0 R] /ON [7 0 R 8 0 R] >> >> >>']);
   object(2, ['<< /Type /Pages /Kids [3 0 R] /Count 1 >>']);
   object(3, [`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pdfNumber(pageWidth)} ${pdfNumber(pageHeight)}] /Resources << /XObject << /Im0 4 0 R >> /Font << /F1 5 0 R >> /Properties << /Text 7 0 R /Drawing 8 0 R >> >> /Contents 6 0 R >>`]);
-  object(4, [`<< /Type /XObject /Subtype /Image /Width ${photo.width} /Height ${photo.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`, jpeg, '\nendstream']);
+  object(4, [`<< /Type /XObject /Subtype /Image /Width ${pdfImage.width} /Height ${pdfImage.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpeg.length} >>\nstream\n`, jpeg, '\nendstream']);
   object(5, ['<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>']);
   object(6, [`<< /Length ${streamBytes.length} >>\nstream\n`, streamBytes, '\nendstream']);
   object(7, ['<< /Type /OCG /Name (Tekst) >>']);
@@ -108,4 +120,21 @@ function exportEditablePdf() {
   for (let index = 1; index <= 8; index += 1) add(`${String(offsets[index]).padStart(10, '0')} 00000 n \n`);
   add(`trailer\n<< /Size 9 /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`);
   return new Blob(chunks, { type: 'application/pdf' });
+}
+
+function exportEmailPdf() {
+  const byteLimit = Math.round(2.6 * 1024 * 1024);
+  const variants = [
+    { maxImageDimension: 2600, quality: .9 },
+    { maxImageDimension: 2100, quality: .86 },
+    { maxImageDimension: 1700, quality: .82 },
+    { maxImageDimension: 1450, quality: .78 }
+  ];
+  let candidate = exportEditablePdf();
+  if (candidate.size <= byteLimit) return candidate;
+  for (const variant of variants) {
+    candidate = exportEditablePdf(variant);
+    if (candidate.size <= byteLimit) return candidate;
+  }
+  return candidate;
 }

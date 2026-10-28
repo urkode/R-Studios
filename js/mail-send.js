@@ -41,7 +41,7 @@
     element.classList.add('show');
     mailToastTimer = setTimeout(() => { element.classList.remove('show'); element.style.background = ''; }, 3500);
   }
-  function pdfs() { return (window.getSavedSketches?.() || []).filter(sketch => sketch.pdfBlob).map(sketch => ({ sketch, file: new File([sketch.pdfBlob], sketchFileName(sketch, 'pdf'), { type: 'application/pdf' }) })); }
+  function pdfs() { return (window.getSavedSketches?.() || []).filter(sketch => sketch.pdfBlob).map(sketch => ({ sketch, file: new File([sketch.mailPdfBlob || sketch.pdfBlob], sketchFileName(sketch, 'pdf'), { type: 'application/pdf' }) })); }
   function renderDialog() {
     selectedRecipients = [];
     updateSendButton();
@@ -91,7 +91,7 @@
   async function sendMail() {
     if (!selectedRecipients.length) return;
     const attachments = pdfs(); if (!attachments.length) { toast('Ingen PDF-er er klare for sending.'); return; }
-    if (attachments.some(({ file }) => file.size >= 3 * 1024 * 1024)) { toast('En PDF er for stor for denne sendingen.'); return; }
+    if (attachments.some(({ file }) => file.size >= 3 * 1024 * 1024)) { microsoftStatus(false); return; }
     send.disabled = true; send.textContent = 'Sender …';
     try {
       const accessToken = await getToken();

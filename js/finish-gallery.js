@@ -220,12 +220,13 @@ async function loadSavedSketches() {
   renderGallery();
 }
 
-async function addFinishedSketch(blob, pdfBlob, editorState) {
+async function addFinishedSketch(blob, pdfBlob, mailPdfBlob, editorState) {
   const sketch = {
     id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
     name: '',
     blob,
     pdfBlob,
+    mailPdfBlob,
     editorState,
     createdAt: Date.now()
   };
@@ -262,18 +263,19 @@ $('#backToStart').onclick = async () => {
   const blob = await exportImage();
   if (!blob) return;
   const pdfBlob = exportEditablePdf();
+  const mailPdfBlob = exportEmailPdf();
   const editorState = snapshotEditorState();
   finishedBlob = blob;
   if (editingSketchId) {
     const index = savedSketches.findIndex(sketch => sketch.id === editingSketchId);
     if (index !== -1) {
-      savedSketches[index] = { ...savedSketches[index], blob, pdfBlob, editorState, updatedAt: Date.now() };
+      savedSketches[index] = { ...savedSketches[index], blob, pdfBlob, mailPdfBlob, editorState, updatedAt: Date.now() };
       await saveSketchRecord(savedSketches[index]);
     }
     editingSketchId = null;
     renderGallery();
   } else {
-    await addFinishedSketch(blob, pdfBlob, editorState);
+    await addFinishedSketch(blob, pdfBlob, mailPdfBlob, editorState);
   }
   show('finishView');
 };
