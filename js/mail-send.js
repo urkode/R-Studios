@@ -104,7 +104,7 @@
       const payload = { message: { subject: title, body: { contentType: 'Text', content: body }, toRecipients: selectedRecipients.map(person => ({ emailAddress: { address: person.email } })), attachments: await Promise.all(attachments.map(async ({ file }) => ({ '@odata.type': '#microsoft.graph.fileAttachment', name: file.name, contentType: 'application/pdf', contentBytes: await base64(file) }))) }, saveToSentItems: true };
       const response = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!response.ok) { const detail = await response.json().catch(() => ({})); throw new Error(detail.error?.message || 'Microsoft Graph kunne ikke sende e-posten.'); }
-      closeDialog(() => { openSentSketchDialog(); microsoftStatus(true); });
+      closeDialog(openSentSketchDialog);
     } catch (error) { console.error('Mail sending failed:', error); microsoftStatus(false); } finally { updateSendButton(); }
   }
   document.querySelector('#downloadImage').onclick = openDialog;
