@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="css/brand.css" />
     <link rel="stylesheet" href="css/sticky.css" />
     <link rel="stylesheet" href="css/home-layout.css" />
+    <link rel="stylesheet" href="css/mail-send.css" />
     <title>R Skisse</title>
   </head>
   <body>
@@ -41,7 +42,7 @@
             <label for="imageUpload" class="source-choice">Velg bilde</label>
           </div>
         </div>
-        <span class="app-version">v1.8.26</span>
+        <span class="app-version">v1.8.27</span>
             <span class="developer-credit">Ulrik Ruud</span>
       </section>
 
@@ -87,8 +88,18 @@
         <button id="deleteSketch" class="delete-button">Slett skisse</button>
       </section>
     </main>
+    <div id="mailDialog" class="mail-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="mailDialogTitle">
+      <section class="mail-card">
+        <header class="mail-header"><div><span class="mail-kicker">R SKISSE</span><h2 id="mailDialogTitle">Send på mail</h2></div><button id="closeMailDialog" class="mail-close" type="button" aria-label="Lukk">&times;</button></header>
+        <div class="mail-section"><span class="mail-label">Mottaker</span><div id="mailRecipients" class="mail-recipients" role="group" aria-label="Velg mottaker"></div></div>
+        <div class="mail-section"><span class="mail-label">PDF-filer</span><div id="mailFiles" class="mail-files"></div></div>
+        <label class="mail-section mail-note-label"><span class="mail-label">Notat</span><textarea id="mailNote" rows="4" placeholder="Kunde, prosjekt eller ekstra informasjon..."></textarea></label>
+        <p id="mailAccount" class="mail-account">Logg inn med Rumag-konto når du sender.</p>
+        <button id="sendMailButton" class="mail-send" type="button" disabled>Velg mottaker</button>
+      </section>
+    </div>
     <div id="toast" role="status"></div>
-    <script src="js/app.js"></script><script src="js/pdf-export.js"></script><script src="js/finish.js"></script><script src="js/editor-flow.js"></script><script src="js/finish-gallery.js"></script>
+    <script src="js/app.js"></script><script src="js/pdf-export.js"></script><script src="js/finish.js"></script><script src="js/editor-flow.js"></script><script src="js/finish-gallery.js"></script><script src="js/mail-send.js"></script>
   </body>
 </html>
 

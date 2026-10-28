@@ -4,6 +4,7 @@ const galleryStore = 'sketches';
 let savedSketches = [];
 let editingSketchId = null;
 let activeProjectTitle = '';
+window.getSavedSketches = () => savedSketches;
 
 function projectTitle() {
   return activeProjectTitle.trim();
