@@ -17,6 +17,7 @@
   }
 
   const dialog = document.querySelector('#mailDialog');
+  const sentSketchDialog = document.querySelector('#sentSketchDialog');
   const recipientList = document.querySelector('#mailRecipients');
   const filesList = document.querySelector('#mailFiles');
   const note = document.querySelector('#mailNote');
@@ -65,7 +66,9 @@
     if (!attachments.length) filesList.textContent = 'Ingen PDF-er er klare ennå.';
   }
   function openDialog() { if (!window.getSavedSketches?.().length) { toast('Ingen skisser er klare ennå.'); return; } renderDialog(); document.body.classList.add('mail-dialog-open'); dialog.classList.remove('hidden', 'is-closing'); }
-  function closeDialog() { if (dialog.classList.contains('hidden')) return; const card = dialog.querySelector('.mail-card'); document.body.classList.remove('mail-dialog-open'); dialog.classList.add('is-closing'); const done = event => { if (event.target !== card) return; dialog.classList.add('hidden'); dialog.classList.remove('is-closing'); card.removeEventListener('animationend', done); }; card.addEventListener('animationend', done); }
+  function closeDialog(afterClose) { if (dialog.classList.contains('hidden')) return; const card = dialog.querySelector('.mail-card'); document.body.classList.remove('mail-dialog-open'); dialog.classList.add('is-closing'); const done = event => { if (event.target !== card) return; dialog.classList.add('hidden'); dialog.classList.remove('is-closing'); card.removeEventListener('animationend', done); afterClose?.(); }; card.addEventListener('animationend', done); }
+  function openSentSketchDialog() { document.body.classList.add('mail-dialog-open'); sentSketchDialog.classList.remove('hidden', 'is-closing'); }
+  function closeSentSketchDialog() { sentSketchDialog.classList.add('hidden'); sentSketchDialog.classList.remove('is-closing'); document.body.classList.remove('mail-dialog-open'); }
 
   async function getToken() {
     if (token && Date.now() < tokenExpiresAt - 60_000) return token;
@@ -101,11 +104,17 @@
       const payload = { message: { subject: title, body: { contentType: 'Text', content: body }, toRecipients: selectedRecipients.map(person => ({ emailAddress: { address: person.email } })), attachments: await Promise.all(attachments.map(async ({ file }) => ({ '@odata.type': '#microsoft.graph.fileAttachment', name: file.name, contentType: 'application/pdf', contentBytes: await base64(file) }))) }, saveToSentItems: true };
       const response = await fetch('https://graph.microsoft.com/v1.0/me/sendMail', { method: 'POST', headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
       if (!response.ok) { const detail = await response.json().catch(() => ({})); throw new Error(detail.error?.message || 'Microsoft Graph kunne ikke sende e-posten.'); }
-      closeDialog(); microsoftStatus(true);
+      closeDialog(() => { openSentSketchDialog(); microsoftStatus(true); });
     } catch (error) { console.error('Mail sending failed:', error); microsoftStatus(false); } finally { updateSendButton(); }
   }
   document.querySelector('#downloadImage').onclick = openDialog;
   document.querySelector('#closeMailDialog').onclick = closeDialog;
   dialog.addEventListener('click', event => { if (event.target === dialog) closeDialog(); });
   send.onclick = sendMail;
+  document.querySelector('#keepSentSketches').onclick = closeSentSketchDialog;
+  document.querySelector('#discardSentSketches').onclick = async () => {
+    closeSentSketchDialog();
+    await window.resetSketchSession?.();
+    show('startView');
+  };
 })();

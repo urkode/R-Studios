@@ -1,6 +1,8 @@
 /* Persistent, on-device gallery for completed sketches. */
 const galleryDatabase = 'befaringsskisse-gallery';
 const galleryStore = 'sketches';
+const gallerySessionKey = 'r-skisse-session-expires-at';
+const gallerySessionDuration = 24 * 60 * 60 * 1000;
 let savedSketches = [];
 let editingSketchId = null;
 let activeProjectTitle = '';
@@ -43,12 +45,24 @@ function sketchFileName(sketch, extension = 'pdf') {
 }
 
 async function saveSketchRecord(sketch) {
-  /* Sketches are deliberately session-only: do not persist images in the browser. */
-  return sketch;
+  return galleryRequest('readwrite', store => store.put(sketch));
 }
 
 async function removeSketchRecord(id) {
-  return id;
+  return galleryRequest('readwrite', store => store.delete(id));
+}
+
+function startGallerySession() {
+  const expiry = Number(localStorage.getItem(gallerySessionKey));
+  if (!Number.isFinite(expiry) || expiry <= Date.now()) {
+    localStorage.setItem(gallerySessionKey, String(Date.now() + gallerySessionDuration));
+  }
+}
+
+async function clearGallerySession() {
+  savedSketches = [];
+  localStorage.removeItem(gallerySessionKey);
+  try { await galleryRequest('readwrite', store => store.clear()); } catch (_) {}
 }
 
 function snapshotEditorState() {
@@ -178,6 +192,7 @@ function renderGallery() {
       await removeSketchRecord(sketch.id);
       savedSketches = savedSketches.filter(item => item.id !== sketch.id);
       if (!savedSketches.length) {
+        await clearGallerySession();
         show('startView');
         return;
       }
@@ -215,12 +230,25 @@ function renderGallery() {
 }
 
 async function loadSavedSketches() {
-  savedSketches = [];
-  if ('indexedDB' in window) indexedDB.deleteDatabase(galleryDatabase);
+  const expiry = Number(localStorage.getItem(gallerySessionKey));
+  if (!Number.isFinite(expiry) || expiry <= Date.now()) {
+    await clearGallerySession();
+    renderGallery();
+    return;
+  }
+  try {
+    savedSketches = await galleryRequest('readonly', store => store.getAll());
+    savedSketches.sort((first, second) => second.createdAt - first.createdAt);
+  } catch (_) {
+    savedSketches = [];
+  }
+  if (!savedSketches.length) localStorage.removeItem(gallerySessionKey);
   renderGallery();
+  if (savedSketches.length) show('finishView');
 }
 
 async function addFinishedSketch(blob, pdfBlob, mailPdfBlob, editorState) {
+  startGallerySession();
   const sketch = {
     id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
     name: '',
@@ -286,8 +314,8 @@ const projectTitleInput = $('#projectTitle');
 projectTitleInput.addEventListener('input', () => {
   activeProjectTitle = projectTitleInput.value;
 });
-window.resetSketchSession = () => {
-  savedSketches = [];
+window.resetSketchSession = async () => {
+  await clearGallerySession();
   editingSketchId = null;
   activeProjectTitle = '';
   projectTitleInput.value = '';
@@ -298,7 +326,6 @@ window.resetSketchSession = () => {
   photo.width = 0;
   draw.width = 0;
   renderGallery();
-  if ('indexedDB' in window) indexedDB.deleteDatabase(galleryDatabase);
 };
 const finishImageSourceDialog = $('#finishImageSourceDialog');
 function closeFinishImageSource() {
