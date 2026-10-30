@@ -22,6 +22,7 @@
     <link rel="stylesheet" href="css/sticky.css" />
     <link rel="stylesheet" href="css/home-layout.css" />
     <link rel="stylesheet" href="css/mail-send.css" />
+    <link rel="stylesheet" href="css/zip-mail.css" />
     <title>R Skisse</title>
   </head>
   <body>
@@ -42,7 +43,7 @@
             <label for="imageUpload" class="source-choice">Velg bilde</label>
           </div>
         </div>
-        <span class="app-version">v1.8.52</span>
+        <span class="app-version">v1.8.53</span>
         <span class="developer-credit">Ulrik Ruud</span>
         <button id="accessLogout" class="access-logout" type="button" aria-label="Logg ut">Logg ut</button>
       </section>
@@ -93,7 +94,7 @@
       <section class="mail-card">
         <header class="mail-header"><div><span class="mail-kicker">R SKISSE</span><h2 id="mailDialogTitle">Send på mail</h2></div><button id="closeMailDialog" class="mail-close" type="button" aria-label="Lukk">&times;</button></header>
         <div class="mail-section"><span class="mail-label">Mottaker</span><div id="mailRecipients" class="mail-recipients" role="group" aria-label="Velg mottaker"></div></div>
-        <div class="mail-section"><span class="mail-label">PDF-filer</span><div id="mailFiles" class="mail-files"></div></div>
+        <div class="mail-section"><span class="mail-label">Vedlegg</span><div id="mailFiles" class="mail-files"></div></div>
         <label class="mail-section mail-note-label"><span class="mail-label">Notat</span><textarea id="mailNote" rows="4" placeholder="Kunde, prosjekt eller ekstra informasjon..."></textarea></label>
         <button id="sendMailButton" class="mail-send" type="button" disabled>Velg mottaker</button>
       </section>
