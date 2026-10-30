@@ -17,7 +17,8 @@
   const accessTokenKey = 'r-skisse-graph-access-token';
   const accessTokenExpiryKey = 'r-skisse-graph-access-token-expiry';
   const scopeVersionKey = 'r-skisse-graph-scope-version';
-  const scopeVersion = 'zip-attachments-v1';
+  const scopeVersion = 'zip-attachments-v2';
+  const maxDesignPngBytes = 3 * 1024 * 1024;
   const callback = new URLSearchParams(location.search);
 
   if (window.opener && callback.has('code') && callback.has('state')) {
@@ -171,22 +172,48 @@
     return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Kunne ikke lage PNG-fil.')), type));
   }
 
+  function drawScaledImage(image, width, height) {
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    canvas.getContext('2d').drawImage(image, 0, 0, width, height);
+    return canvas;
+  }
+
   async function originalPngFile(sketch) {
     const photoData = sketch.editorState?.photoData;
     if (!photoData) throw new Error('Originalbildet mangler for en skisse.');
     const image = await imageFromDataUrl(photoData);
-    const canvas = document.createElement('canvas');
-    canvas.width = image.naturalWidth || image.width;
-    canvas.height = image.naturalHeight || image.height;
-    canvas.getContext('2d').drawImage(image, 0, 0);
-    return new File([await canvasBlob(canvas, 'image/png')], sketchFileName(sketch, 'png'), { type: 'image/png' });
+    const sourceWidth = image.naturalWidth || image.width;
+    const sourceHeight = image.naturalHeight || image.height;
+    let width = sourceWidth;
+    let height = sourceHeight;
+    let blob = await canvasBlob(drawScaledImage(image, width, height), 'image/png');
+
+    /* PNG has no adjustable quality setting. Reduce pixel dimensions until every
+       design image is at most 3 MB, while preserving its aspect ratio. */
+    for (let attempt = 0; blob.size > maxDesignPngBytes && attempt < 8; attempt += 1) {
+      const scale = Math.max(0.1, Math.min(0.96, Math.sqrt((maxDesignPngBytes * 0.92) / blob.size)));
+      const nextWidth = Math.max(320, Math.floor(width * scale));
+      const nextHeight = Math.max(320, Math.floor(height * scale));
+      if (nextWidth === width && nextHeight === height) break;
+      width = nextWidth;
+      height = nextHeight;
+      blob = await canvasBlob(drawScaledImage(image, width, height), 'image/png');
+    }
+    if (blob.size > maxDesignPngBytes) throw new Error('Kunne ikke gjøre designbildet lite nok for e-post.');
+    return new File([blob], sketchFileName(sketch, 'png'), { type: 'image/png' });
   }
 
   async function mailAttachments() {
     const sketches = window.getSavedSketches?.() || [];
     const pdfs = pdfFiles();
     if (!pdfs.length || pdfs.length !== sketches.length) throw new Error('PDF-filene er ikke klare ennå.');
-    const pngs = await Promise.all(sketches.map(originalPngFile));
+    const pngs = [];
+    for (const sketch of sketches) {
+      pngs.push(await originalPngFile(sketch));
+      await new Promise(resolve => requestAnimationFrame(resolve));
+    }
     if (sketches.length === 1) return [pdfs[0], pngs[0]];
     const zipped = await Promise.all([
       createZip(pdfs.map(file => ({ name: file.name, file }))),
@@ -238,13 +265,13 @@
     if (sketches.length === 1) {
       filesList.replaceChildren(
         addFileRow(sketchFileName(sketches[0], 'pdf'), 'PDF med tekst og tegning'),
-        addFileRow(sketchFileName(sketches[0], 'png'), 'PNG uten redigering')
+        addFileRow(sketchFileName(sketches[0], 'png'), 'PNG uten redigering (maks 3 MB)')
       );
       return;
     }
     filesList.replaceChildren(
       addFileRow('Befaringsskisser.zip', sketches.length + ' PDF-filer med tekst og tegning'),
-      addFileRow('Designfiler.zip', sketches.length + ' PNG-filer uten redigering')
+      addFileRow('Designfiler.zip', sketches.length + ' PNG-filer uten redigering (maks 3 MB per fil)')
     );
   }
 
@@ -338,6 +365,20 @@
   }
 
   async function uploadAttachment(messageId, file, accessToken) {
+    if (file.size < 3 * 1024 * 1024) {
+      const contentBytes = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result).split(',')[1]);
+        reader.onerror = () => reject(new Error('Kunne ikke lese vedlegget.'));
+        reader.readAsDataURL(file);
+      });
+      await graph('/me/messages/' + messageId + '/attachments', accessToken, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ '@odata.type': '#microsoft.graph.fileAttachment', name: file.name, contentType: file.type, contentBytes })
+      });
+      return;
+    }
     const session = await graph('/me/messages/' + messageId + '/attachments/createUploadSession', accessToken, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
