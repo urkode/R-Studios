@@ -39,6 +39,7 @@
   let token = null;
   let tokenExpiresAt = 0;
   let mailToastTimer = null;
+  let sendingDotsTimer = null;
 
   const encode = bytes => btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
   const randomString = () => encode(crypto.getRandomValues(new Uint8Array(32)));
@@ -86,8 +87,21 @@
   }
 
   function updateSendButton() {
+    clearInterval(sendingDotsTimer);
+    sendingDotsTimer = null;
     send.disabled = !selectedRecipients.length;
     send.textContent = selectedRecipients.length ? 'Send' : 'Velg mottaker';
+  }
+
+  function startSendingAnimation() {
+    clearInterval(sendingDotsTimer);
+    let dotCount = 0;
+    const draw = () => {
+      dotCount = (dotCount % 3) + 1;
+      send.textContent = 'Sender' + '.'.repeat(dotCount);
+    };
+    draw();
+    sendingDotsTimer = setInterval(draw, 420);
   }
 
   function pdfFiles() {
@@ -420,7 +434,7 @@
     try {
       sessionStorage.setItem(pendingKey, JSON.stringify({ recipients: selectedRecipients.map(person => person.email), note: note.value.trim() }));
       const attachments = await mailAttachments();
-      send.textContent = 'Sender ...';
+      startSendingAnimation();
       const accessToken = await getToken();
       if (!accessToken) return;
       await sendWithToken(accessToken, attachments, selectedRecipients, note.value.trim());
@@ -431,6 +445,8 @@
       clearAuthAttempt();
       logFailure(error);
     } finally {
+      clearInterval(sendingDotsTimer);
+      sendingDotsTimer = null;
       if (!useRedirectLogin) updateSendButton();
     }
   }

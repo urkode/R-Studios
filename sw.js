@@ -1,4 +1,4 @@
-const cache = 'r-skisse-v1854';
+const cache = 'r-skisse-v1855';
 const assets = [
   './',
   './index.html',
