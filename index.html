@@ -43,7 +43,7 @@
             <label for="imageUpload" class="source-choice">Velg bilde</label>
           </div>
         </div>
-        <span class="app-version">v1.8.55</span>
+        <span class="app-version">v1.8.56</span>
         <span class="developer-credit">Ulrik Ruud</span>
         <button id="accessLogout" class="access-logout" type="button" aria-label="Logg ut">Logg ut</button>
       </section>
@@ -97,6 +97,7 @@
         <div class="mail-section"><span class="mail-label">Vedlegg</span><div id="mailFiles" class="mail-files"></div></div>
         <label class="mail-section mail-note-label"><span class="mail-label">Notat</span><textarea id="mailNote" rows="4" placeholder="Kunde, prosjekt eller ekstra informasjon..."></textarea></label>
         <button id="sendMailButton" class="mail-send" type="button" disabled>Velg mottaker</button>
+        <div id="mailProgress" class="mail-progress hidden" aria-live="polite"><div class="mail-progress-track"><span id="mailProgressBar"></span></div><small id="mailProgressLabel">Klargjør filer</small></div>
       </section>
     </div>
     <div id="sentSketchDialog" class="mail-dialog hidden" role="dialog" aria-modal="true" aria-labelledby="sentSketchDialogTitle">

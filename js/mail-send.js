@@ -33,6 +33,9 @@
   const filesList = document.querySelector('#mailFiles');
   const note = document.querySelector('#mailNote');
   const send = document.querySelector('#sendMailButton');
+  const progress = document.querySelector('#mailProgress');
+  const progressBar = document.querySelector('#mailProgressBar');
+  const progressLabel = document.querySelector('#mailProgressLabel');
   const redirectUri = location.origin + location.pathname;
   const useRedirectLogin = window.matchMedia('(display-mode: standalone)').matches || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
   let selectedRecipients = [];
@@ -91,6 +94,17 @@
     sendingDotsTimer = null;
     send.disabled = !selectedRecipients.length;
     send.textContent = selectedRecipients.length ? 'Send' : 'Velg mottaker';
+  }
+
+  function setProgress(percent, label) {
+    progress.classList.remove('hidden');
+    progressBar.style.width = Math.max(0, Math.min(100, percent)) + '%';
+    progressLabel.textContent = label + ' · ' + Math.round(percent) + ' %';
+  }
+
+  function resetProgress() {
+    progress.classList.add('hidden');
+    progressBar.style.width = '0%';
   }
 
   function startSendingAnimation() {
@@ -219,23 +233,29 @@
     return new File([blob], sketchFileName(sketch, 'png'), { type: 'image/png' });
   }
 
-  async function mailAttachments() {
+  async function mailAttachments(onProgress = () => {}) {
     const sketches = window.getSavedSketches?.() || [];
     const pdfs = pdfFiles();
     if (!pdfs.length || pdfs.length !== sketches.length) throw new Error('PDF-filene er ikke klare ennå.');
     const pngs = [];
-    for (const sketch of sketches) {
+    onProgress(3, 'Klargjør PDF-filer');
+    for (const [index, sketch] of sketches.entries()) {
+      onProgress(4 + ((index / sketches.length) * 17), 'Klargjør designfil ' + (index + 1) + ' av ' + sketches.length);
       pngs.push(await originalPngFile(sketch));
       await new Promise(resolve => requestAnimationFrame(resolve));
     }
-    if (sketches.length === 1) return [pdfs[0], pngs[0]];
-    const zipped = await Promise.all([
-      createZip(pdfs.map(file => ({ name: file.name, file }))),
-      createZip(pngs.map(file => ({ name: file.name, file })))
-    ]);
+    if (sketches.length === 1) {
+      onProgress(28, 'Vedlegg klare');
+      return [pdfs[0], pngs[0]];
+    }
+    onProgress(22, 'Pakker PDF-filer');
+    const pdfZip = await createZip(pdfs.map(file => ({ name: file.name, file })));
+    onProgress(25, 'Pakker designfiler');
+    const designZip = await createZip(pngs.map(file => ({ name: file.name, file })));
+    onProgress(28, 'Vedlegg klare');
     return [
-      new File([zipped[0]], 'Befaringsskisser.zip', { type: 'application/zip' }),
-      new File([zipped[1]], 'Designfiler.zip', { type: 'application/zip' })
+      new File([pdfZip], 'Befaringsskisser.zip', { type: 'application/zip' }),
+      new File([designZip], 'Designfiler.zip', { type: 'application/zip' })
     ];
   }
 
@@ -292,6 +312,7 @@
   function openDialog() {
     if (!window.getSavedSketches?.().length) { toast('Ingen skisser er klare ennå.'); return; }
     renderDialog();
+    resetProgress();
     document.body.classList.add('mail-dialog-open');
     dialog.classList.remove('hidden', 'is-closing');
   }
@@ -378,7 +399,7 @@
     throw failure;
   }
 
-  async function uploadAttachment(messageId, file, accessToken) {
+  async function uploadAttachment(messageId, file, accessToken, onUploaded = () => {}) {
     if (file.size < 3 * 1024 * 1024) {
       const contentBytes = await new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -391,6 +412,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ '@odata.type': '#microsoft.graph.fileAttachment', name: file.name, contentType: file.type, contentBytes })
       });
+      onUploaded(file.size);
       return;
     }
     const session = await graph('/me/messages/' + messageId + '/attachments/createUploadSession', accessToken, {
@@ -408,18 +430,29 @@
         body: data.slice(start, end)
       });
       if (!response.ok) throw new Error('Kunne ikke laste opp vedlegget til Microsoft.');
+      onUploaded(end - start);
     }
   }
 
-  async function sendWithToken(accessToken, attachments, destinationRecipients, noteText) {
+  async function sendWithToken(accessToken, attachments, destinationRecipients, noteText, onProgress = () => {}) {
     const body = noteText ? noteText + '\n\nVedlagte filer er laget i R Skisse.' : 'Vedlagte filer er laget i R Skisse.';
+    onProgress(30, 'Oppretter e-post');
     const message = await graph('/me/messages', accessToken, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ subject: 'Befaringsskisse', body: { contentType: 'Text', content: body }, toRecipients: destinationRecipients.map(person => ({ emailAddress: { address: person.email } })) })
     }).then(response => response.json());
-    for (const file of attachments) await uploadAttachment(message.id, file, accessToken);
+    const totalBytes = attachments.reduce((total, file) => total + file.size, 0);
+    let uploadedBytes = 0;
+    for (const file of attachments) {
+      await uploadAttachment(message.id, file, accessToken, bytes => {
+        uploadedBytes += bytes;
+        onProgress(30 + ((uploadedBytes / totalBytes) * 66), 'Laster opp filer');
+      });
+    }
+    onProgress(97, 'Sender e-post');
     await graph('/me/messages/' + message.id + '/send', accessToken, { method: 'POST' });
+    onProgress(100, 'Sendt');
   }
 
   function logFailure(error) {
@@ -433,11 +466,12 @@
     send.textContent = 'Pakker filer ...';
     try {
       sessionStorage.setItem(pendingKey, JSON.stringify({ recipients: selectedRecipients.map(person => person.email), note: note.value.trim() }));
-      const attachments = await mailAttachments();
+      setProgress(1, 'Klargjør vedlegg');
+      const attachments = await mailAttachments(setProgress);
       startSendingAnimation();
       const accessToken = await getToken();
       if (!accessToken) return;
-      await sendWithToken(accessToken, attachments, selectedRecipients, note.value.trim());
+      await sendWithToken(accessToken, attachments, selectedRecipients, note.value.trim(), setProgress);
       clearAuthAttempt();
       microsoftStatus(true);
       closeDialog(openSentSketchDialog);
